@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moztro.app.data.AppLanguage
+import com.moztro.app.data.AppStrings
 import com.moztro.app.ui.theme.MonoBorder
 import com.moztro.app.ui.theme.MonoBorderLight
 import com.moztro.app.ui.theme.MonoDarkBg
@@ -48,10 +50,14 @@ import com.moztro.app.ui.theme.MonoTextSubtle
 import com.moztro.app.ui.theme.MonoWhite
 
 @Composable
-fun AboutScreen() {
+fun AboutScreen(
+    appLanguage: AppLanguage = AppLanguage.ENGLISH,
+    versionName: String = "v1.0.1 Beta"
+) {
     val context = LocalContext.current
     val view = LocalView.current
     val scrollState = rememberScrollState()
+    val strings = AppStrings.forLanguage(appLanguage)
 
     Column(
         modifier = Modifier
@@ -89,7 +95,7 @@ fun AboutScreen() {
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "v1.0.0",
+                        text = versionName,
                         color = MonoTextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -98,7 +104,7 @@ fun AboutScreen() {
                 }
             }
             Text(
-                text = "Universal PC-Android Seamless Bridge",
+                text = strings.aboutSubtitle,
                 color = MonoTextSecondary,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
@@ -115,7 +121,7 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "ABOUT THE APP",
+                text = strings.aboutTitle,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -124,14 +130,14 @@ fun AboutScreen() {
             )
             HorizontalDivider(thickness = 1.dp, color = MonoBorder)
             Text(
-                text = "Moztro adalah ekosistem kontrol dan pertukaran data lokal nirkabel berkecepatan tinggi yang menghubungkan perangkat Android dan PC Windows Anda secara instan tanpa memerlukan koneksi internet/cloud.",
+                text = strings.aboutDescription,
                 color = MonoTextSecondary,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
             )
         }
 
-        // Section: Fitur Utama
+        // Section: Main Features
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,7 +147,7 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "FITUR UTAMA",
+                text = strings.aboutMainFeatures,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -151,20 +157,20 @@ fun AboutScreen() {
             HorizontalDivider(thickness = 1.dp, color = MonoBorder)
 
             AboutFeatureItem(
-                title = "Overdrive",
-                desc = "Real-time PC screen mirroring dengan kontrol touch & multi-gesture trackpad presisi tinggi."
+                title = strings.featureOverdriveTitle,
+                desc = strings.featureOverdriveDesc
             )
             AboutFeatureItem(
-                title = "Fast File Transfer",
-                desc = "Pengiriman file & folder tanpa batas ukuran via local high-speed WebSocket & HTTP server."
+                title = strings.featureFastFileTitle,
+                desc = strings.featureFastFileDesc
             )
             AboutFeatureItem(
-                title = "View On Device (VOD)",
-                desc = "Akses dan kelola seluruh penyimpanan Android langsung dari PC File Explorer via FTP."
+                title = strings.featureVodTitle,
+                desc = strings.featureVodDesc
             )
             AboutFeatureItem(
-                title = "Remote Control & Power Suite",
-                desc = "Kontrol media, keyboard, touchpad, clipboard sync, hingga shutdown/restart PC jarak jauh."
+                title = strings.featureRemoteTitle,
+                desc = strings.featureRemoteDesc
             )
         }
 
@@ -178,7 +184,7 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "DEVELOPER & CREATOR",
+                text = strings.aboutDeveloperTitle,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -193,7 +199,7 @@ fun AboutScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Created & Developed by:",
+                    text = strings.aboutCreatedBy,
                     color = MonoTextMuted,
                     fontSize = 12.sp
                 )
@@ -212,7 +218,7 @@ fun AboutScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Brand / Project:",
+                    text = strings.aboutBrandProject,
                     color = MonoTextMuted,
                     fontSize = 12.sp
                 )
@@ -236,7 +242,7 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "CONNECT & CONTACT",
+                text = strings.aboutConnectTitle,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -273,7 +279,7 @@ fun AboutScreen() {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "INSTAGRAM",
+                            text = strings.aboutInstagramCard,
                             color = MonoTextMuted,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -306,13 +312,11 @@ fun AboutScreen() {
                     ) {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         val email = "measureofsuccess.official@gmail.com"
-                        // Copy to clipboard
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         val clip = ClipData.newPlainText("Moztro Contact Email", email)
                         clipboard?.setPrimaryClip(clip)
-                        Toast.makeText(context, "Email copied to clipboard", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, strings.aboutEmailCopied, Toast.LENGTH_SHORT).show()
 
-                        // Try open email app
                         try {
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:$email")
@@ -330,7 +334,7 @@ fun AboutScreen() {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "EMAIL (TAP TO COPY / EMAIL)",
+                            text = strings.aboutEmailCard,
                             color = MonoTextMuted,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -361,13 +365,13 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "© 2026 Akbar Dwi Mulya (Measure of Success). All rights reserved.",
+                text = strings.aboutCopyright,
                 color = MonoTextMuted,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "Built for seamless local productivity and maximum device interoperability.",
+                text = strings.aboutFooter,
                 color = MonoTextSubtle,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace

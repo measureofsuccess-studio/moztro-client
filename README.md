@@ -7,7 +7,7 @@
 **Universal PC-Android Seamless Bridge**  
 *Next-generation local mobile control center & high-performance productivity client.*
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/measureofsuccess-studio/moztro-client/releases)
+[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/measureofsuccess-studio/moztro-client/releases)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Compose-lightgrey.svg)](https://github.com/measureofsuccess-studio/moztro-client)
 [![Organization](https://img.shields.io/badge/org-Measure%20of%20Success-black.svg)](https://github.com/measureofsuccess-studio)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -45,7 +45,7 @@ Moztro Client communicates over local WebSockets and HTTP with the **Moztro PC S
 
 ## Installation
 
-1. Download the latest **`Moztro-1.0.0.apk`** from the [Releases Page](https://github.com/measureofsuccess-studio/moztro-client/releases/latest).
+1. Download the latest **`Moztro-1.0.2.apk`** from the [**Releases Page**](https://github.com/measureofsuccess-studio/moztro-client/releases/latest).
 2. Install the APK on your Android device (Android 8.0+ / API 26+).
 3. Connect your Android device and PC to the same Wi-Fi network or mobile hotspot.
 

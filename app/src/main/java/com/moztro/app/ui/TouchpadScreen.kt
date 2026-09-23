@@ -75,6 +75,7 @@ import kotlin.math.abs
 
 @Composable
 fun TouchpadScreen(
+    appLanguage: com.moztro.app.data.AppLanguage = com.moztro.app.data.AppLanguage.ENGLISH,
     mouseSpeed: Int,
     scrollLines: Int,
     isDragging: Boolean,
@@ -89,6 +90,7 @@ fun TouchpadScreen(
     onModifierChange: (modifier: String, isDown: Boolean) -> Unit = { _, _ -> },
     onReleaseAllModifiers: () -> Unit = {}
 ) {
+    val strings = com.moztro.app.data.AppStrings.forLanguage(appLanguage)
     val view = LocalView.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -356,7 +358,7 @@ fun TouchpadScreen(
                 .then(touchpadGestureModifier),
             contentAlignment = Alignment.Center
         ) {
-            TouchSurfaceIndicator(isDragging = isDragging)
+            TouchSurfaceIndicator(isDragging = isDragging, strings = strings)
         }
 
         // Lower Section: When Keyboard is toggled ON
@@ -400,7 +402,7 @@ fun TouchpadScreen(
                     ) {
                         if (typedText.isEmpty()) {
                             Text(
-                                text = "TAP TO TYPE",
+                                text = strings.touchpadTapToType,
                                 color = Color(0xFF555555),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
@@ -653,13 +655,13 @@ fun ToolbarKeyButton(
 }
 
 @Composable
-fun TouchSurfaceIndicator(isDragging: Boolean) {
+fun TouchSurfaceIndicator(isDragging: Boolean, strings: com.moztro.app.data.AppStrings) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = if (isDragging) "DRAGGING..." else "TOUCH SURFACE",
+            text = if (isDragging) strings.touchpadDragging else strings.touchpadTouchSurface,
             color = if (isDragging) MonoWhite else Color(0xFF3A3A3A),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,

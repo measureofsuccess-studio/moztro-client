@@ -28,8 +28,18 @@ enum class ScreenView {
     FILE_SEND,
     VOD,
     OVERDRIVE,
-    ABOUT
+    ABOUT,
+    UPDATE
 }
+
+data class AppUpdateInfo(
+    val versionName: String,
+    val releaseTitle: String = "",
+    val releaseNotes: String = "",
+    val downloadUrl: String = "",
+    val fileSizeBytes: Long = 0L,
+    val publishedAt: String = ""
+)
 
 enum class MouseSensitivity(val label: String, val scale: Float) {
     SLOW("1.0x", 1.0f),
@@ -90,9 +100,8 @@ enum class OverdriveTouchMode(val label: String) {
 }
 
 enum class OverdriveQuality(val label: String, val code: String) {
-    BALANCED("Balanced (720p)", "BALANCED"),
-    HIGH("High (1080p)", "HIGH"),
-    FAST("Fast (540p)", "FAST")
+    HIGH("High (1080p 60fps)", "HIGH"),
+    FAST("Fast (540p 60fps)", "FAST")
 }
 
 data class PcCursorPosition(

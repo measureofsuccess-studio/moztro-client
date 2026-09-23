@@ -105,9 +105,16 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import kotlin.math.abs
 import kotlin.math.sqrt
 import com.moztro.app.R
+import com.moztro.app.data.AppLanguage
+import com.moztro.app.data.AppStrings
 import com.moztro.app.data.ClipboardDirection
 import com.moztro.app.data.ConnectionState
 import com.moztro.app.data.DiscoveredServer
@@ -168,6 +175,8 @@ fun openFileWithDefaultApp(context: Context, item: FileTransferItem) {
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
+    val appLanguage by viewModel.appLanguage.collectAsState()
+    val strings = com.moztro.app.data.AppStrings.forLanguage(appLanguage)
     val currentScreen by viewModel.currentScreen.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val mouseSpeed by viewModel.mouseSpeed.collectAsState()
@@ -193,6 +202,11 @@ fun HomeScreen(viewModel: MainViewModel) {
     val overdriveStreamWidth by viewModel.overdriveStreamWidth.collectAsState()
     val overdriveStreamHeight by viewModel.overdriveStreamHeight.collectAsState()
     val pcCursorPosition by viewModel.pcCursorPosition.collectAsState()
+    val availableUpdate by viewModel.availableUpdate.collectAsState()
+    val isDownloadingUpdate by viewModel.isDownloadingUpdate.collectAsState()
+    val updateDownloadProgress by viewModel.updateDownloadProgress.collectAsState()
+    val downloadSpeedFormatted by viewModel.downloadSpeedFormatted.collectAsState()
+    val isUpdateReadyToInstall by viewModel.isUpdateReadyToInstall.collectAsState()
     var isOverdriveKeyboardVisible by remember { mutableStateOf(false) }
     val view = LocalView.current
 
@@ -201,17 +215,35 @@ fun HomeScreen(viewModel: MainViewModel) {
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            Toast.makeText(context, if (connectionState == ConnectionState.CONNECTED) "Sending ${uris.size} file(s)..." else "Not connected to PC", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                if (connectionState == ConnectionState.CONNECTED)
+                    java.lang.String.format(strings.toastSendingFiles, uris.size)
+                else
+                    strings.toastNotConnected,
+                Toast.LENGTH_SHORT
+            ).show()
             viewModel.sendFiles(
                 uris = uris,
                 context = context,
                 onProgress = { current, total, fileName ->
-                    Toast.makeText(context, "Sending ($current/$total): $fileName", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        java.lang.String.format(strings.toastSendingProgress, current, total, fileName),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 },
                 onComplete = { successCount, failCount, message ->
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
             )
+        }
+    }
+
+    // Auto-check for updates whenever returning to MAIN screen
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == ScreenView.MAIN) {
+            viewModel.checkForAppUpdate()
         }
     }
 
@@ -510,6 +542,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                 when (targetScreen) {
                     ScreenView.MAIN -> {
                         MainMenuView(
+                            appLanguage = appLanguage,
                             onWakeOnLanClick = {
                                 viewModel.executeWakeOnLan { success, message ->
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -538,11 +571,16 @@ fun HomeScreen(viewModel: MainViewModel) {
                             },
                             onAboutClick = {
                                 viewModel.navigateTo(ScreenView.ABOUT)
+                            },
+                            availableUpdate = availableUpdate,
+                            onUpdateClick = {
+                                viewModel.navigateTo(ScreenView.UPDATE)
                             }
                         )
                     }
                     ScreenView.POWER_MENU -> {
                         PowerMenuView(
+                            appLanguage = appLanguage,
                             onShutdown = {
                                 viewModel.executePowerAction("SHUTDOWN") { success, message ->
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -570,6 +608,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                     ScreenView.TOUCHPAD -> {
                         TouchpadScreen(
+                            appLanguage = appLanguage,
                             mouseSpeed = mouseSpeed,
                             scrollLines = scrollLines,
                             isDragging = isMouseDragging,
@@ -587,6 +626,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                     ScreenView.SETTINGS -> {
                         SettingsScreen(
+                            appLanguage = appLanguage,
                             mouseSpeed = mouseSpeed,
                             scrollLines = scrollLines,
                             isFullscreen = isFullscreen,
@@ -596,6 +636,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                             overdriveTouchMode = overdriveTouchMode,
                             overdriveQuality = overdriveQuality,
                             overdriveAudioEnabled = overdriveAudioEnabled,
+                            onAppLanguageChange = { viewModel.setAppLanguage(it) },
                             onMouseSpeedChange = { viewModel.setMouseSpeed(it) },
                             onScrollLinesChange = { viewModel.setScrollLines(it) },
                             onFullscreenToggle = { viewModel.setFullscreen(it) },
@@ -609,6 +650,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                     ScreenView.VOD -> {
                         VodScreen(
+                            appLanguage = appLanguage,
                             connectionState = connectionState,
                             connectedServer = connectedServer,
                             isVodEnabled = isVodEnabled,
@@ -618,6 +660,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                     ScreenView.OVERDRIVE -> {
                         OverdriveScreen(
+                            appLanguage = appLanguage,
                             connectionState = connectionState,
                             connectedServer = connectedServer,
                             overdriveFrame = overdriveFrame,
@@ -648,6 +691,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                     ScreenView.FILE_SEND -> {
                         FileSendView(
+                            appLanguage = appLanguage,
                             transferLogs = transferLogs,
                             onCancelTransfer = { transferId ->
                                 viewModel.cancelTransfer(transferId)
@@ -672,12 +716,29 @@ fun HomeScreen(viewModel: MainViewModel) {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                 val clip = ClipData.newPlainText("Moztro Clipboard", text)
                                 clipboard?.setPrimaryClip(clip)
-                                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, strings.toastCopiedClipboard, Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
                     ScreenView.ABOUT -> {
-                        AboutScreen()
+                        AboutScreen(
+                            appLanguage = appLanguage,
+                            versionName = viewModel.currentVersionFormatted
+                        )
+                    }
+                    ScreenView.UPDATE -> {
+                        UpdateScreen(
+                            appLanguage = appLanguage,
+                            currentVersion = viewModel.currentVersionFormatted,
+                            updateInfo = availableUpdate,
+                            isDownloading = isDownloadingUpdate,
+                            downloadProgress = updateDownloadProgress,
+                            downloadSpeedFormatted = downloadSpeedFormatted,
+                            isReadyToInstall = isUpdateReadyToInstall,
+                            onDownloadClick = { viewModel.startDownloadUpdate(context) },
+                            onInstallClick = { viewModel.installDownloadedApk(context) },
+                            onBackClick = { viewModel.navigateBack() }
+                        )
                     }
                 }
             }
@@ -687,6 +748,7 @@ fun HomeScreen(viewModel: MainViewModel) {
 
 @Composable
 fun MainMenuView(
+    appLanguage: com.moztro.app.data.AppLanguage = com.moztro.app.data.AppLanguage.ENGLISH,
     onWakeOnLanClick: () -> Unit,
     onShutdownMenuClick: () -> Unit,
     onInputMenuClick: () -> Unit,
@@ -695,9 +757,13 @@ fun MainMenuView(
     onFileSendClick: () -> Unit,
     onVodClick: () -> Unit,
     onOverdriveClick: () -> Unit,
-    onAboutClick: () -> Unit
+    onAboutClick: () -> Unit,
+    availableUpdate: com.moztro.app.data.AppUpdateInfo? = null,
+    onUpdateClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
+    val strings = com.moztro.app.data.AppStrings.forLanguage(appLanguage)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -709,7 +775,7 @@ fun MainMenuView(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Menu 1: Wake On Lan (Kotak tanpa rounded / lancip)
+            // Menu 1: Wake On Lan
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -726,14 +792,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_smart),
-                        contentDescription = "Wake On Lan",
+                        contentDescription = strings.menuWakeOnLan,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Wake On Lan",
+                        text = strings.menuWakeOnLan,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -741,7 +807,7 @@ fun MainMenuView(
                 }
             }
 
-            // Menu 2: Shutting Down (Kotak tanpa rounded / lancip)
+            // Menu 2: Shutdown
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -758,14 +824,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_power_button),
-                        contentDescription = "Shutting Down",
+                        contentDescription = strings.menuShutdown,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Shutting Down",
+                        text = strings.menuShutdown,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -776,12 +842,12 @@ fun MainMenuView(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Row 2: Menu Input (below Wake On Lan) & Menu Keyboard (below Shutting Down)
+        // Row 2: Menu Input (below Wake On Lan) & Menu Keyboard (below Shutdown)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Menu 3: Input / Mouse (Kotak tanpa rounded / lancip)
+            // Menu 3: Input / Mouse
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -798,14 +864,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_mouse),
-                        contentDescription = "Input",
+                        contentDescription = strings.menuInput,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Input",
+                        text = strings.menuInput,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -813,7 +879,7 @@ fun MainMenuView(
                 }
             }
 
-            // Menu 4: Keyboard (Kotak tanpa rounded / lancip)
+            // Menu 4: Keyboard
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -830,14 +896,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_keyboard),
-                        contentDescription = "Keyboard",
+                        contentDescription = strings.menuKeyboard,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Keyboard",
+                        text = strings.menuKeyboard,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -853,7 +919,7 @@ fun MainMenuView(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Menu 5: Setting (Kotak tanpa rounded / lancip)
+            // Menu 5: Setting
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -870,14 +936,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_setting),
-                        contentDescription = "Setting",
+                        contentDescription = strings.menuSettings,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Setting",
+                        text = strings.menuSettings,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -885,7 +951,7 @@ fun MainMenuView(
                 }
             }
 
-            // Menu 6: File Send (Kotak tanpa rounded / lancip, below Keyboard)
+            // Menu 6: File Send
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -902,14 +968,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_file_send),
-                        contentDescription = "File Send",
+                        contentDescription = strings.menuFileSend,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "File Send",
+                        text = strings.menuFileSend,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -942,14 +1008,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_vod),
-                        contentDescription = "VOD",
+                        contentDescription = strings.menuVod,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "VOD",
+                        text = strings.menuVod,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -974,14 +1040,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_overdrive),
-                        contentDescription = "Overdrive",
+                        contentDescription = strings.menuOverdrive,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Overdrive",
+                        text = strings.menuOverdrive,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -1014,14 +1080,14 @@ fun MainMenuView(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_about),
-                        contentDescription = "About",
+                        contentDescription = strings.menuAbout,
                         colorFilter = ColorFilter.tint(MonoWhite),
                         modifier = Modifier.size(32.dp),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "About",
+                        text = strings.menuAbout,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -1029,18 +1095,53 @@ fun MainMenuView(
                 }
             }
 
-            // Empty spacer to balance 2-column grid
-            Spacer(modifier = Modifier.weight(1f))
+            // Menu 10: Update (Only appears if update is available)
+            if (availableUpdate != null) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .background(MonoSurface, shape = RectangleShape)
+                        .border(1.dp, MonoBorder, shape = RectangleShape)
+                        .clickable { onUpdateClick() }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_update),
+                            contentDescription = strings.menuUpdate,
+                            modifier = Modifier.size(32.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = strings.menuUpdate,
+                            color = MonoTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else {
+                // Empty spacer to balance 2-column grid
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
 
 @Composable
 fun PowerMenuView(
+    appLanguage: com.moztro.app.data.AppLanguage = com.moztro.app.data.AppLanguage.ENGLISH,
     onShutdown: () -> Unit,
     onRestart: () -> Unit,
     onSleep: () -> Unit
 ) {
+    val strings = com.moztro.app.data.AppStrings.forLanguage(appLanguage)
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1053,21 +1154,21 @@ fun PowerMenuView(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Button 1: Shutting Down
+            // Button 1: Shutdown
             PowerActionButton(
-                text = "Shutting Down",
+                text = strings.powerShutdown,
                 onClick = onShutdown
             )
 
             // Button 2: Restart
             PowerActionButton(
-                text = "Restart",
+                text = strings.powerRestart,
                 onClick = onRestart
             )
 
             // Button 3: Sleep
             PowerActionButton(
-                text = "Sleep",
+                text = strings.powerSleep,
                 onClick = onSleep
             )
         }
@@ -1099,6 +1200,7 @@ fun PowerActionButton(
 
 @Composable
 fun FileSendView(
+    appLanguage: AppLanguage = AppLanguage.ENGLISH,
     transferLogs: List<FileTransferItem>,
     onCancelTransfer: (String) -> Unit,
     onClearLogs: (Set<String>) -> Unit,
@@ -1108,6 +1210,7 @@ fun FileSendView(
     onCopyTextToClipboard: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val strings = AppStrings.forLanguage(appLanguage)
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     val isSelectionMode = selectedItemIds.isNotEmpty()
 
@@ -1175,7 +1278,7 @@ fun FileSendView(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Select All",
+                                text = strings.fileSendSelectAll,
                                 color = MonoTextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
@@ -1188,7 +1291,7 @@ fun FileSendView(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "${selectedItemIds.size} selected",
+                                text = String.format(strings.fileSendSelectedCount, selectedItemIds.size),
                                 color = MonoTextSecondary,
                                 fontSize = 11.sp
                             )
@@ -1223,6 +1326,7 @@ fun FileSendView(
                             if (item.itemType == TransferItemType.CLIPBOARD) {
                                 ClipboardTransferRow(
                                     item = item,
+                                    strings = strings,
                                     isSelectionMode = isSelectionMode,
                                     isSelected = isSelected,
                                     onRowClick = {
@@ -1242,6 +1346,7 @@ fun FileSendView(
                             } else {
                                 FileTransferRow(
                                     item = item,
+                                    strings = strings,
                                     isSelectionMode = isSelectionMode,
                                     isSelected = isSelected,
                                     onRowClick = {
@@ -1288,7 +1393,7 @@ fun FileSendView(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Clear (${selectedItemIds.size})",
+                                text = String.format(strings.fileSendClear, selectedItemIds.size),
                                 color = MonoWhite,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1311,7 +1416,7 @@ fun FileSendView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             FileActionButton(
-                text = "Send\nClipboard",
+                text = strings.fileSendSendClipboard,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -1319,7 +1424,7 @@ fun FileSendView(
             )
 
             FileActionButton(
-                text = "Select\nFile",
+                text = strings.fileSendSelectFile,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -1327,7 +1432,7 @@ fun FileSendView(
             )
 
             FileActionButton(
-                text = "Paste\nClipboard",
+                text = strings.fileSendPasteClipboard,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -1366,6 +1471,7 @@ fun FileActionButton(
 @Composable
 fun ClipboardTransferRow(
     item: FileTransferItem,
+    strings: AppStrings = AppStrings.English,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onRowClick: () -> Unit,
@@ -1440,11 +1546,11 @@ fun ClipboardTransferRow(
             val (statusColor, statusText) = when (item.status) {
                 TransferStatus.COMPLETE -> Pair(
                     MonoTextSecondary,
-                    if (isToPc) "Sent to PC" else "Copied to Phone"
+                    if (isToPc) strings.fileSendSentToPc else strings.fileSendCopiedToPhone
                 )
-                TransferStatus.FAILED -> Pair(Color(0xFFFF5252), "Failed")
-                TransferStatus.CANCELLED -> Pair(MonoTextSecondary, "Cancelled")
-                else -> Pair(MonoTextSecondary, "Pending")
+                TransferStatus.FAILED -> Pair(Color(0xFFFF5252), strings.fileSendFailed)
+                TransferStatus.CANCELLED -> Pair(MonoTextSecondary, strings.fileSendCancelled)
+                else -> Pair(MonoTextSecondary, strings.fileSendPending)
             }
             Text(
                 text = statusText,
@@ -1494,6 +1600,7 @@ fun ClipboardTransferRow(
 @Composable
 fun FileTransferRow(
     item: FileTransferItem,
+    strings: AppStrings = AppStrings.English,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onRowClick: () -> Unit,
@@ -1587,9 +1694,9 @@ fun FileTransferRow(
                     }
                 } else {
                     val (statusColor, statusText) = when (item.status) {
-                        TransferStatus.COMPLETE -> Pair(MonoTextPrimary, "Complete")
-                        TransferStatus.CANCELLED -> Pair(MonoTextSecondary, "Cancelled")
-                        TransferStatus.FAILED -> Pair(Color(0xFFFF5252), "Failed")
+                        TransferStatus.COMPLETE -> Pair(MonoTextPrimary, strings.fileSendComplete)
+                        TransferStatus.CANCELLED -> Pair(MonoTextSecondary, strings.fileSendCancelled)
+                        TransferStatus.FAILED -> Pair(Color(0xFFFF5252), strings.fileSendFailed)
                         else -> Pair(MonoTextPrimary, "")
                     }
                     Text(
@@ -1640,12 +1747,14 @@ fun FileTransferRow(
 
 @Composable
 fun VodScreen(
+    appLanguage: AppLanguage = AppLanguage.ENGLISH,
     connectionState: ConnectionState,
     connectedServer: DiscoveredServer?,
     isVodEnabled: Boolean,
     vodFtpUrl: String?,
     onToggleVod: () -> Unit
 ) {
+    val strings = AppStrings.forLanguage(appLanguage)
     val isConnected = connectionState == ConnectionState.CONNECTED
     val serverName = connectedServer?.hostname ?: "PC"
 
@@ -1673,7 +1782,7 @@ fun VodScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "STATUS",
+                        text = strings.vodStatus,
                         color = MonoTextSecondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
@@ -1693,7 +1802,7 @@ fun VodScreen(
                                 )
                         )
                         Text(
-                            text = if (isConnected) "Connected to $serverName" else "Not Connected",
+                            text = if (isConnected) String.format(strings.vodConnectedTo, serverName) else strings.vodNotConnected,
                             color = if (isConnected) MonoTextPrimary else Color(0xFFFF5252),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -1705,7 +1814,7 @@ fun VodScreen(
 
                 // Row 2: Description Text (as specified by user)
                 Text(
-                    text = "Access and manage local device storage directly via PC.",
+                    text = strings.vodDesc,
                     color = MonoTextPrimary,
                     fontSize = 13.sp,
                     lineHeight = 18.sp
@@ -1722,7 +1831,7 @@ fun VodScreen(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = "FTP ADDRESS",
+                                text = strings.vodFtpAddress,
                                 color = MonoTextSecondary,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
@@ -1758,7 +1867,7 @@ fun VodScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (isVodEnabled) "Turn Off" else "Turn On",
+                text = if (isVodEnabled) strings.vodTurnOff else strings.vodTurnOn,
                 color = if (isVodEnabled) MonoDarkBg else MonoTextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -1824,6 +1933,7 @@ fun mapPcToCanvasCoordinates(
 
 @Composable
 fun OverdriveScreen(
+    appLanguage: AppLanguage = AppLanguage.ENGLISH,
     connectionState: ConnectionState,
     connectedServer: DiscoveredServer?,
     overdriveFrame: Bitmap?,
@@ -1848,6 +1958,7 @@ fun OverdriveScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current
+    val strings = AppStrings.forLanguage(appLanguage)
     var textInput by remember { mutableStateOf("") }
 
     val isConnected = connectionState == ConnectionState.CONNECTED
@@ -1870,299 +1981,309 @@ fun OverdriveScreen(
         }
     }
 
+    // Main layout: Column with imePadding so keyboard pushes content up
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        if (isConnected && overdriveFrame != null) {
-            var canvasWidth by remember { mutableStateOf(0) }
-            var canvasHeight by remember { mutableStateOf(0) }
-
-            // Sync cursor overlay position with actual PC cursor coordinates
-            LaunchedEffect(pcCursorPosition, canvasWidth, canvasHeight, streamWidth, streamHeight) {
-                val pos = pcCursorPosition ?: return@LaunchedEffect
-                val (targetX, targetY) = mapPcToCanvasCoordinates(
-                    pcX = pos.x,
-                    pcY = pos.y,
-                    pcScreenW = pos.screenW,
-                    pcScreenH = pos.screenH,
-                    canvasW = canvasWidth,
-                    canvasH = canvasHeight,
-                    streamW = streamWidth,
-                    streamH = streamHeight
-                )
-                cursorSmoothedX = targetX
-                cursorSmoothedY = targetY
-                cursorVisible = true
-            }
-
-            // Dead zone threshold in pixels
-            val deadZonePx = with(density) { 4.dp.toPx() }
-            // Smoothing factor: 0 = lag, 1 = no smoothing
-            val smoothAlpha = 0.75f
-            // Speed multiplier for trackpad
-            val trackpadSpeed = 1.5f
-
-            Image(
-                bitmap = overdriveFrame.asImageBitmap(),
-                contentDescription = "Overdrive PC Mirror",
-                contentScale = ContentScale.Fit,
+        // Content column — imePadding makes it shrink upward when soft keyboard appears
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+        ) {
+            // Stream area — takes all remaining space above the keyboard bar
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .onSizeChanged {
-                        canvasWidth = it.width
-                        canvasHeight = it.height
-                        // If no PC position yet, default to center
-                        if (cursorSmoothedX == 0f && cursorSmoothedY == 0f) {
-                            cursorSmoothedX = it.width / 2f
-                            cursorSmoothedY = it.height / 2f
-                        }
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (isConnected && overdriveFrame != null) {
+                    var canvasWidth by remember { mutableStateOf(0) }
+                    var canvasHeight by remember { mutableStateOf(0) }
+
+                    // Sync cursor overlay position with actual PC cursor coordinates
+                    LaunchedEffect(pcCursorPosition, canvasWidth, canvasHeight, streamWidth, streamHeight) {
+                        val pos = pcCursorPosition ?: return@LaunchedEffect
+                        val (targetX, targetY) = mapPcToCanvasCoordinates(
+                            pcX = pos.x,
+                            pcY = pos.y,
+                            pcScreenW = pos.screenW,
+                            pcScreenH = pos.screenH,
+                            canvasW = canvasWidth,
+                            canvasH = canvasHeight,
+                            streamW = streamWidth,
+                            streamH = streamHeight
+                        )
+                        cursorSmoothedX = targetX
+                        cursorSmoothedY = targetY
+                        cursorVisible = true
                     }
-                    // Direct touch mode gestures
-                    .pointerInput(overdriveTouchMode, streamWidth, streamHeight) {
-                        if (overdriveTouchMode == OverdriveTouchMode.DIRECT_TOUCH) {
-                            detectTapGestures(
-                                onPress = { offset ->
-                                    val (pcX, pcY) = mapToPcCoordinates(
-                                        offset.x, offset.y,
-                                        canvasWidth, canvasHeight,
-                                        streamWidth, streamHeight
-                                    )
-                                    onTouchEvent("DOWN", pcX, pcY, null, null, "LEFT", null)
-                                    tryAwaitRelease()
-                                    onTouchEvent("UP", pcX, pcY, null, null, "LEFT", null)
-                                },
-                                onLongPress = { offset ->
-                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                    val (pcX, pcY) = mapToPcCoordinates(
-                                        offset.x, offset.y,
-                                        canvasWidth, canvasHeight,
-                                        streamWidth, streamHeight
-                                    )
-                                    onTouchEvent("CLICK", pcX, pcY, null, null, "RIGHT", null)
+
+                    // Dead zone threshold in pixels
+                    val deadZonePx = with(density) { 4.dp.toPx() }
+                    // Smoothing factor: 0 = lag, 1 = no smoothing
+                    val smoothAlpha = 0.75f
+                    // Speed multiplier for trackpad
+                    val trackpadSpeed = 1.5f
+
+                    Image(
+                        bitmap = overdriveFrame.asImageBitmap(),
+                        contentDescription = "Overdrive PC Mirror",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSizeChanged {
+                                canvasWidth = it.width
+                                canvasHeight = it.height
+                                // If no PC position yet, default to center
+                                if (cursorSmoothedX == 0f && cursorSmoothedY == 0f) {
+                                    cursorSmoothedX = it.width / 2f
+                                    cursorSmoothedY = it.height / 2f
                                 }
-                            )
-                        }
-                    }
-                    .pointerInput(overdriveTouchMode, streamWidth, streamHeight) {
-                        if (overdriveTouchMode == OverdriveTouchMode.DIRECT_TOUCH) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    val (pcX, pcY) = mapToPcCoordinates(
-                                        offset.x, offset.y,
-                                        canvasWidth, canvasHeight,
-                                        streamWidth, streamHeight
+                            }
+                            // Direct touch mode gestures
+                            .pointerInput(overdriveTouchMode, streamWidth, streamHeight) {
+                                if (overdriveTouchMode == OverdriveTouchMode.DIRECT_TOUCH) {
+                                    detectTapGestures(
+                                        onPress = { offset ->
+                                            val (pcX, pcY) = mapToPcCoordinates(
+                                                offset.x, offset.y,
+                                                canvasWidth, canvasHeight,
+                                                streamWidth, streamHeight
+                                            )
+                                            onTouchEvent("DOWN", pcX, pcY, null, null, "LEFT", null)
+                                            tryAwaitRelease()
+                                            onTouchEvent("UP", pcX, pcY, null, null, "LEFT", null)
+                                        },
+                                        onLongPress = { offset ->
+                                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                            val (pcX, pcY) = mapToPcCoordinates(
+                                                offset.x, offset.y,
+                                                canvasWidth, canvasHeight,
+                                                streamWidth, streamHeight
+                                            )
+                                            onTouchEvent("CLICK", pcX, pcY, null, null, "RIGHT", null)
+                                        }
                                     )
-                                    onTouchEvent("DOWN", pcX, pcY, null, null, "LEFT", null)
-                                },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    val (pcX, pcY) = mapToPcCoordinates(
-                                        change.position.x, change.position.y,
-                                        canvasWidth, canvasHeight,
-                                        streamWidth, streamHeight
-                                    )
-                                    onTouchEvent("MOVE", pcX, pcY, null, null, null, null)
-                                },
-                                onDragEnd = {
-                                    onTouchEvent("UP", null, null, null, null, "LEFT", null)
-                                },
-                                onDragCancel = {
-                                    onTouchEvent("UP", null, null, null, null, "LEFT", null)
                                 }
-                            )
-                        }
-                    }
-                    // Trackpad mode: full multi-touch gesture handling
-                    .pointerInput(overdriveTouchMode) {
-                        if (overdriveTouchMode == OverdriveTouchMode.TRACKPAD) {
-                            awaitEachGesture {
-                                // Wait for first finger down
-                                val firstDown = awaitFirstDown(requireUnconsumed = false)
-                                firstDown.consume()
-
-                                var isDragging = false
-                                var accumulatedX = 0f
-                                var accumulatedY = 0f
-                                var isScrolling = false
-
-                                cursorVisible = true
-
-                                // Track active pointers for multi-touch detection
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val activePointers = event.changes.filter { it.pressed }
-                                    val fingerCount = activePointers.size
-
-                                    // Check if any pointer lifted (gesture ended)
-                                    val anyUp = event.changes.any { it.changedToUp() }
-
-                                    if (fingerCount == 0 || anyUp && !isDragging) {
-                                        // All lifted — was it a tap?
-                                        val totalMoved = sqrt(accumulatedX * accumulatedX + accumulatedY * accumulatedY)
-                                        if (!isDragging && totalMoved < deadZonePx) {
-                                            if (fingerCount == 2 || event.changes.count { it.changedToUp() } >= 2) {
-                                                // Two-finger tap = right click
-                                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                                onTouchEvent("CLICK", null, null, null, null, "RIGHT", null)
-                                            } else {
-                                                // Single tap = left click
-                                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                                onTouchEvent("CLICK", null, null, null, null, "LEFT", null)
-                                            }
-                                        } else if (isDragging) {
+                            }
+                            .pointerInput(overdriveTouchMode, streamWidth, streamHeight) {
+                                if (overdriveTouchMode == OverdriveTouchMode.DIRECT_TOUCH) {
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            val (pcX, pcY) = mapToPcCoordinates(
+                                                offset.x, offset.y,
+                                                canvasWidth, canvasHeight,
+                                                streamWidth, streamHeight
+                                            )
+                                            onTouchEvent("DOWN", pcX, pcY, null, null, "LEFT", null)
+                                        },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val (pcX, pcY) = mapToPcCoordinates(
+                                                change.position.x, change.position.y,
+                                                canvasWidth, canvasHeight,
+                                                streamWidth, streamHeight
+                                            )
+                                            onTouchEvent("MOVE", pcX, pcY, null, null, null, null)
+                                        },
+                                        onDragEnd = {
+                                            onTouchEvent("UP", null, null, null, null, "LEFT", null)
+                                        },
+                                        onDragCancel = {
                                             onTouchEvent("UP", null, null, null, null, "LEFT", null)
                                         }
-                                        isScrolling = false
-                                        isDragging = false
-                                        accumulatedX = 0f
-                                        accumulatedY = 0f
-                                        break
-                                    }
+                                    )
+                                }
+                            }
+                            // Trackpad mode: full multi-touch gesture handling
+                            .pointerInput(overdriveTouchMode) {
+                                if (overdriveTouchMode == OverdriveTouchMode.TRACKPAD) {
+                                    awaitEachGesture {
+                                        // Wait for first finger down
+                                        val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                        firstDown.consume()
 
-                                    if (fingerCount >= 2) {
-                                        // Two-finger drag = scroll
-                                        val primaryChange = activePointers.first()
-                                        val dy = primaryChange.position.y - primaryChange.previousPosition.y
-                                        val absMovedY = abs(dy)
-                                        if (absMovedY > deadZonePx / 2f) {
-                                            isScrolling = true
-                                            // Negative dy = scroll up, positive = scroll down
-                                            val scrollDelta = -(dy * 3).toInt().coerceIn(-500, 500)
-                                            onTouchEvent("SCROLL", null, null, null, null, null, scrollDelta)
-                                        }
-                                        event.changes.forEach { it.consume() }
-                                    } else if (fingerCount == 1) {
-                                        // Single finger drag = mouse move
-                                        val change = activePointers.first()
-                                        val rawDx = change.position.x - change.previousPosition.x
-                                        val rawDy = change.position.y - change.previousPosition.y
-                                        accumulatedX += rawDx
-                                        accumulatedY += rawDy
+                                        var isDragging = false
+                                        var accumulatedX = 0f
+                                        var accumulatedY = 0f
+                                        var isScrolling = false
 
-                                        val totalMoved = sqrt(accumulatedX * accumulatedX + accumulatedY * accumulatedY)
-                                        if (totalMoved > deadZonePx || isDragging) {
-                                            if (!isDragging) isDragging = true
+                                        cursorVisible = true
 
-                                            // Apply dead zone filter per-delta
-                                            if (abs(rawDx) > deadZonePx / 4f || abs(rawDy) > deadZonePx / 4f) {
-                                                val scaledDx = rawDx * trackpadSpeed
-                                                val scaledDy = rawDy * trackpadSpeed
+                                        // Track active pointers for multi-touch detection
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val activePointers = event.changes.filter { it.pressed }
+                                            val fingerCount = activePointers.size
 
-                                                // Update cursor position with smoothing
-                                                val targetX = (cursorSmoothedX + scaledDx).coerceIn(0f, canvasWidth.toFloat())
-                                                val targetY = (cursorSmoothedY + scaledDy).coerceIn(0f, canvasHeight.toFloat())
-                                                cursorSmoothedX = cursorSmoothedX + (targetX - cursorSmoothedX) * smoothAlpha
-                                                cursorSmoothedY = cursorSmoothedY + (targetY - cursorSmoothedY) * smoothAlpha
+                                            // Check if any pointer lifted (gesture ended)
+                                            val anyUp = event.changes.any { it.changedToUp() }
 
-                                                onTouchEvent("MOVE", null, null, scaledDx, scaledDy, null, null)
+                                            if (fingerCount == 0 || anyUp && !isDragging) {
+                                                // All lifted — was it a tap?
+                                                val totalMoved = sqrt(accumulatedX * accumulatedX + accumulatedY * accumulatedY)
+                                                if (!isDragging && totalMoved < deadZonePx) {
+                                                    if (fingerCount == 2 || event.changes.count { it.changedToUp() } >= 2) {
+                                                        // Two-finger tap = right click
+                                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                                        onTouchEvent("CLICK", null, null, null, null, "RIGHT", null)
+                                                    } else {
+                                                        // Single tap = left click
+                                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                                        onTouchEvent("CLICK", null, null, null, null, "LEFT", null)
+                                                    }
+                                                } else if (isDragging) {
+                                                    onTouchEvent("UP", null, null, null, null, "LEFT", null)
+                                                }
+                                                isScrolling = false
+                                                isDragging = false
+                                                accumulatedX = 0f
+                                                accumulatedY = 0f
+                                                break
+                                            }
+
+                                            if (fingerCount >= 2) {
+                                                // Two-finger drag = scroll
+                                                val primaryChange = activePointers.first()
+                                                val dy = primaryChange.position.y - primaryChange.previousPosition.y
+                                                val absMovedY = abs(dy)
+                                                if (absMovedY > deadZonePx / 2f) {
+                                                    isScrolling = true
+                                                    // Negative dy = scroll up, positive = scroll down
+                                                    val scrollDelta = -(dy * 3).toInt().coerceIn(-500, 500)
+                                                    onTouchEvent("SCROLL", null, null, null, null, null, scrollDelta)
+                                                }
+                                                event.changes.forEach { it.consume() }
+                                            } else if (fingerCount == 1) {
+                                                // Single finger drag = smooth mouse move with speed acceleration
+                                                val change = activePointers.first()
+                                                val rawDx = change.position.x - change.previousPosition.x
+                                                val rawDy = change.position.y - change.previousPosition.y
+                                                accumulatedX += rawDx
+                                                accumulatedY += rawDy
+
+                                                val totalMoved = sqrt(accumulatedX * accumulatedX + accumulatedY * accumulatedY)
+                                                if (totalMoved > deadZonePx || isDragging) {
+                                                    if (!isDragging) isDragging = true
+
+                                                    val moveDist = sqrt(rawDx * rawDx + rawDy * rawDy)
+                                                    if (moveDist > 0.2f) {
+                                                        val speedMultiplier = when {
+                                                            moveDist < 1.0f -> 0.9f
+                                                            moveDist < 4.0f -> 1.15f
+                                                            moveDist < 10.0f -> 1.4f
+                                                            else -> 1.7f
+                                                        }
+                                                        val scaledDx = rawDx * trackpadSpeed * speedMultiplier
+                                                        val scaledDy = rawDy * trackpadSpeed * speedMultiplier
+
+                                                        // Optimistically update local smoothed cursor pos
+                                                        cursorSmoothedX = (cursorSmoothedX + scaledDx).coerceIn(0f, canvasWidth.toFloat())
+                                                        cursorSmoothedY = (cursorSmoothedY + scaledDy).coerceIn(0f, canvasHeight.toFloat())
+
+                                                        onTouchEvent("MOVE", null, null, scaledDx, scaledDy, null, null)
+                                                    }
+                                                }
+                                                change.consume()
                                             }
                                         }
-                                        change.consume()
                                     }
                                 }
                             }
-                        }
-                    }
-            )
-
-            // Cursor dot overlay (only in trackpad mode) — uses offset{IntOffset} for pixel-accurate absolute positioning
-            if (overdriveTouchMode == OverdriveTouchMode.TRACKPAD && cursorVisible) {
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    val dotSizePx = with(density) { 10.dp.toPx() }
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .offset {
-                                IntOffset(
-                                    x = (cursorSmoothedX - dotSizePx / 2f).toInt().coerceAtLeast(0),
-                                    y = (cursorSmoothedY - dotSizePx / 2f).toInt().coerceAtLeast(0)
-                                )
-                            }
-                            .shadow(elevation = 6.dp, shape = CircleShape, clip = false)
-                            .background(Color.White, shape = CircleShape)
-                            .border(1.5.dp, Color.Black.copy(alpha = 0.6f), shape = CircleShape)
                     )
-                }
-            }
-        } else {
-            // Placeholder when connecting / loading stream
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_overdrive),
-                    contentDescription = "Overdrive",
-                    colorFilter = ColorFilter.tint(MonoWhite),
-                    modifier = Modifier.size(54.dp),
-                    contentScale = ContentScale.Fit
-                )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = if (isConnected) "Starting Overdrive Stream..." else "Not Connected to PC",
-                    color = if (isConnected) MonoWhite else Color(0xFFFF5252),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (isConnected) "Mirroring PC screen & system audio in real-time" else "Connect to PC from the Home screen to start screen mirroring.",
-                    color = MonoTextSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center
-                )
-
-                if (!isConnected) {
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Box(
+                    // Small circular dot cursor overlay (6dp) — shown in all modes
+                    if (cursorVisible) {
+                        val dotSizeDp = 6.dp
+                        val dotSizePx = with(density) { dotSizeDp.toPx() }
+                        Box(
+                            modifier = Modifier
+                                .size(dotSizeDp)
+                                .offset {
+                                    IntOffset(
+                                        x = (cursorSmoothedX - dotSizePx / 2f).toInt(),
+                                        y = (cursorSmoothedY - dotSizePx / 2f).toInt()
+                                    )
+                                }
+                                .background(Color.White, CircleShape)
+                                .border(1.dp, Color.Black.copy(alpha = 0.85f), CircleShape)
+                        )
+                    }
+                } else {
+                    // Placeholder when connecting / loading stream
+                    Column(
                         modifier = Modifier
-                            .background(MonoWhite, shape = RectangleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                onConnect()
-                            }
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_overdrive),
+                            contentDescription = "Overdrive",
+                            colorFilter = ColorFilter.tint(MonoWhite),
+                            modifier = Modifier.size(54.dp),
+                            contentScale = ContentScale.Fit
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         Text(
-                            text = "CONNECT TO PC",
-                            color = MonoDarkBg,
-                            fontSize = 12.sp,
+                            text = if (isConnected) strings.overdriveStarting else strings.overdriveNotConnected,
+                            color = if (isConnected) MonoWhite else Color(0xFFFF5252),
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (isConnected) strings.overdriveDescConnected else strings.overdriveDescDisconnected,
+                            color = MonoTextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+
+                        if (!isConnected) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(MonoWhite, shape = RectangleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        onConnect()
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = strings.overdriveConnectButton,
+                                    color = MonoDarkBg,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        // Soft Keyboard Input Bar Overlay (if toggled)
-        if (isKeyboardOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(MonoSurface)
-                    .border(1.dp, MonoBorder, RectangleShape)
-                    .padding(12.dp)
-            ) {
+            // Soft Keyboard Input Bar — sits at bottom of Column, pushed up with keyboard
+            if (isKeyboardOpen) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MonoSurface)
+                        .border(1.dp, MonoBorder, RectangleShape)
+                        .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -2199,7 +2320,7 @@ fun OverdriveScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Enter",
+                            text = strings.overdriveEnter,
                             color = MonoDarkBg,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold

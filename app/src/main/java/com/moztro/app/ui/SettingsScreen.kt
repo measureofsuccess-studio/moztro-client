@@ -39,6 +39,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moztro.app.data.AppLanguage
+import com.moztro.app.data.AppStrings
+import com.moztro.app.data.OverdriveQuality
+import com.moztro.app.data.OverdriveTouchMode
 import com.moztro.app.ui.theme.MonoBorder
 import com.moztro.app.ui.theme.MonoBorderLight
 import com.moztro.app.ui.theme.MonoDarkBg
@@ -50,27 +54,30 @@ import com.moztro.app.ui.theme.MonoWhite
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    appLanguage: AppLanguage = AppLanguage.ENGLISH,
     mouseSpeed: Int,
     scrollLines: Int,
     isFullscreen: Boolean,
     deleteFileOnClearHistory: Boolean = false,
     vodDefaultOn: Boolean = true,
     storageDirectoryPath: String = "",
-    overdriveTouchMode: com.moztro.app.data.OverdriveTouchMode = com.moztro.app.data.OverdriveTouchMode.DIRECT_TOUCH,
-    overdriveQuality: com.moztro.app.data.OverdriveQuality = com.moztro.app.data.OverdriveQuality.BALANCED,
+    overdriveTouchMode: OverdriveTouchMode = OverdriveTouchMode.DIRECT_TOUCH,
+    overdriveQuality: OverdriveQuality = OverdriveQuality.HIGH,
     overdriveAudioEnabled: Boolean = true,
+    onAppLanguageChange: (AppLanguage) -> Unit = {},
     onMouseSpeedChange: (Int) -> Unit,
     onScrollLinesChange: (Int) -> Unit,
     onFullscreenToggle: (Boolean) -> Unit,
     onDeleteFileOnClearHistoryToggle: (Boolean) -> Unit = {},
     onVodDefaultOnToggle: (Boolean) -> Unit = {},
     onStorageDirectoryChange: (String) -> Unit = {},
-    onOverdriveTouchModeChange: (com.moztro.app.data.OverdriveTouchMode) -> Unit = {},
-    onOverdriveQualityChange: (com.moztro.app.data.OverdriveQuality) -> Unit = {},
+    onOverdriveTouchModeChange: (OverdriveTouchMode) -> Unit = {},
+    onOverdriveQualityChange: (OverdriveQuality) -> Unit = {},
     onOverdriveAudioEnabledToggle: (Boolean) -> Unit = {}
 ) {
     val view = LocalView.current
     val scrollState = rememberScrollState()
+    val strings = AppStrings.forLanguage(appLanguage)
 
     Column(
         modifier = Modifier
@@ -80,7 +87,7 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Section 1: POINTER & TOUCHPAD
+        // Section 1: LANGUAGE
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -90,7 +97,83 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "POINTER & TOUCHPAD",
+                text = strings.settingsSectionLanguage,
+                color = MonoWhite,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
+                fontFamily = FontFamily.Monospace
+            )
+
+            HorizontalDivider(thickness = 1.dp, color = MonoBorder)
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column {
+                    Text(
+                        text = strings.settingsLanguageTitle,
+                        color = MonoTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = strings.settingsLanguageDesc,
+                        color = MonoTextMuted,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppLanguage.entries.forEach { lang ->
+                        val isSelected = (appLanguage == lang)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    color = if (isSelected) MonoWhite else MonoDarkBg,
+                                    shape = RectangleShape
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) MonoWhite else MonoBorder,
+                                    shape = RectangleShape
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    onAppLanguageChange(lang)
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = lang.displayName,
+                                color = if (isSelected) MonoDarkBg else MonoTextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 2: POINTER & TOUCHPAD
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MonoSurface, shape = RectangleShape)
+                .border(1.dp, MonoBorder, shape = RectangleShape)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = strings.settingsSectionPointer,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -109,13 +192,13 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Pointer Speed",
+                            text = strings.settingsPointerSpeed,
                             color = MonoTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Cursor movement speed in Input menu",
+                            text = strings.settingsPointerSpeedDesc,
                             color = MonoTextMuted,
                             fontSize = 11.sp
                         )
@@ -171,13 +254,13 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Scroll Speed",
+                            text = strings.settingsScrollSpeed,
                             color = MonoTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Vertical scroll lines per gesture",
+                            text = strings.settingsScrollSpeedDesc,
                             color = MonoTextMuted,
                             fontSize = 11.sp
                         )
@@ -191,7 +274,7 @@ fun SettingsScreen(
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "$scrollLines lines",
+                            text = "$scrollLines ${strings.settingsLinesSuffix}",
                             color = MonoWhite,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -223,7 +306,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 2: DISPLAY & SYSTEM
+        // Section 3: DISPLAY & SYSTEM
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -233,7 +316,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "DISPLAY & SYSTEM",
+                text = strings.settingsSectionDisplay,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -259,19 +342,18 @@ fun SettingsScreen(
             ) {
                 Column {
                     Text(
-                        text = "Fullscreen Mode",
+                        text = strings.settingsFullscreen,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Hide status bar & navigation bar",
+                        text = strings.settingsFullscreenDesc,
                         color = MonoTextMuted,
                         fontSize = 11.sp
                     )
                 }
 
-                // Minimalist Toggle Switch (Matches PC Server Switch Style)
                 MoztroSwitch(
                     checked = isFullscreen,
                     onCheckedChange = {
@@ -282,7 +364,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 3: FILE TRANSFER STORAGE
+        // Section 4: FILE TRANSFER STORAGE
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -292,7 +374,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "FILE TRANSFER STORAGE",
+                text = strings.settingsSectionStorage,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -318,13 +400,13 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "Delete original files when clearing history",
+                        text = strings.settingsDeleteHistory,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Deleting history permanently removes the original files from storage.",
+                        text = strings.settingsDeleteHistoryDesc,
                         color = MonoTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 15.sp
@@ -350,13 +432,13 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Default Storage Directory",
+                            text = strings.settingsDefaultStorage,
                             color = MonoTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Auto-categorizes into Document, Image, Music, Video",
+                            text = strings.settingsDefaultStorageDesc,
                             color = MonoTextMuted,
                             fontSize = 11.sp
                         )
@@ -391,7 +473,7 @@ fun SettingsScreen(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = "Change",
+                            text = strings.settingsChangeButton,
                             color = MonoWhite,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
@@ -417,7 +499,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 4: VIEW ON DEVICE (VOD)
+        // Section 5: VIEW ON DEVICE (VOD)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -427,7 +509,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "VIEW ON DEVICE (VOD)",
+                text = strings.settingsSectionVod,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -452,13 +534,13 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "View On Device (VOD) is set to 'On' by default.",
+                        text = strings.settingsVodDefault,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Automatically starts VOD FTP storage sharing when connected to PC.",
+                        text = strings.settingsVodDefaultDesc,
                         color = MonoTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 15.sp
@@ -475,7 +557,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 5: OVERDRIVE (SCREEN MIRRORING & REMOTE CONTROL)
+        // Section 6: OVERDRIVE (SCREEN MIRRORING & REMOTE CONTROL)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -485,7 +567,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "OVERDRIVE (SCREEN MIRRORING)",
+                text = strings.settingsSectionOverdrive,
                 color = MonoWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -498,13 +580,13 @@ fun SettingsScreen(
             // Item 1: Touch Mode
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Touch Control Mode",
+                    text = strings.settingsTouchMode,
                     color = MonoTextPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Direct Touch maps screen taps directly to absolute PC cursor position. Trackpad mode uses relative swipe gesture control.",
+                    text = strings.settingsTouchModeDesc,
                     color = MonoTextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
@@ -514,8 +596,12 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    com.moztro.app.data.OverdriveTouchMode.values().forEach { mode ->
+                    OverdriveTouchMode.entries.forEach { mode ->
                         val isSelected = (overdriveTouchMode == mode)
+                        val modeLabel = when (mode) {
+                            OverdriveTouchMode.DIRECT_TOUCH -> strings.touchModeDirect
+                            OverdriveTouchMode.TRACKPAD -> strings.touchModeTrackpad
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -539,7 +625,7 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = mode.label,
+                                text = modeLabel,
                                 color = if (isSelected) MonoDarkBg else MonoTextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -554,13 +640,13 @@ fun SettingsScreen(
             // Item 2: Streaming Quality
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Streaming Quality",
+                    text = strings.settingsStreamQuality,
                     color = MonoTextPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Configure mirror resolution and target frame rate for optimal performance.",
+                    text = strings.settingsStreamQualityDesc,
                     color = MonoTextMuted,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
@@ -570,8 +656,12 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    com.moztro.app.data.OverdriveQuality.values().forEach { quality ->
+                    OverdriveQuality.entries.forEach { quality ->
                         val isSelected = (overdriveQuality == quality)
+                        val qualityLabel = when (quality) {
+                            OverdriveQuality.HIGH -> strings.qualityHigh
+                            OverdriveQuality.FAST -> strings.qualityFast
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -595,7 +685,7 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = quality.label,
+                                text = qualityLabel,
                                 color = if (isSelected) MonoDarkBg else MonoTextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -623,13 +713,13 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "Stream PC System Audio",
+                        text = strings.settingsStreamAudio,
                         color = MonoTextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Play live audio from your PC through your phone speaker while mirroring.",
+                        text = strings.settingsStreamAudioDesc,
                         color = MonoTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 15.sp

@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Blue Circle Background -->
+    <path
+        android:fillColor="#0096E6"
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+    <!-- White Arrow Body & Head -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,7 L35,18 L29.5,18 L29.5,35 L18.5,35 L18.5,18 L13,18 Z" />
+    <!-- First Base Line (Top) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M18.5,37.5 L29.5,37.5 A1,1 0 0 1 29.5,39.5 L18.5,39.5 A1,1 0 0 1 18.5,37.5 Z" />
+    <!-- Second Base Line (Bottom) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,41 L28,41 A1,1 0 0 1 28,43 L20,43 A1,1 0 0 1 20,41 Z" />
+</vector>
