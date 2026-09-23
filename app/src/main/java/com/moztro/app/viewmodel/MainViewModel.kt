@@ -203,9 +203,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _overdriveQuality = MutableStateFlow(
         try {
-            OverdriveQuality.valueOf(prefs.getString("overdrive_quality", OverdriveQuality.HIGH.name) ?: OverdriveQuality.HIGH.name)
+            OverdriveQuality.valueOf(prefs.getString("overdrive_quality", OverdriveQuality.FAST.name) ?: OverdriveQuality.FAST.name)
         } catch (_: Exception) {
-            OverdriveQuality.HIGH
+            OverdriveQuality.FAST
         }
     )
     val overdriveQuality = _overdriveQuality.asStateFlow()
@@ -229,8 +229,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val overdriveStreamHeight = _overdriveStreamHeight.asStateFlow()
 
     // ─── App Update States ──────────────────────────────────────────────────
-    val currentVersionName = "1.0.2"
-    val currentVersionFormatted = "v1.0.2"
+    val currentVersionName = com.moztro.app.BuildConfig.VERSION_NAME
+    val currentVersionFormatted = "v${com.moztro.app.BuildConfig.VERSION_NAME}"
 
     private val _availableUpdate = MutableStateFlow<com.moztro.app.data.AppUpdateInfo?>(null)
     val availableUpdate = _availableUpdate.asStateFlow()
@@ -1678,40 +1678,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
 
-            // Find the genuine system package installer (EXCLUDE Google Play Store / com.android.vending which crashes on local content URIs)
-            val resInfoList = context.packageManager.queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-            val installerInfo = resInfoList.firstOrNull {
-                val pkg = it.activityInfo.packageName.lowercase()
-                pkg != "com.android.vending" && (
-                    pkg.contains("packageinstaller") ||
-                    pkg.contains("installer") ||
-                    pkg == "com.google.android.packageinstaller" ||
-                    pkg == "com.android.packageinstaller" ||
-                    pkg == "com.transsion.packageinstaller"
-                )
-            } ?: resInfoList.firstOrNull { it.activityInfo.packageName != "com.android.vending" }
-
-            if (installerInfo != null) {
-                intent.setClassName(installerInfo.activityInfo.packageName, installerInfo.activityInfo.name)
-            }
-
-            // Explicitly grant URI read permissions to all intent handlers
-            for (resolveInfo in resInfoList) {
-                val pkgName = resolveInfo.activityInfo.packageName
-                context.grantUriPermission(pkgName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            listOf(
+            // Grant URI read permission explicitly to Google Play Store & Play Protect services
+            // to prevent hanging/freezing on "Installing..." during verification scans
+            val knownInstallers = listOf(
+                "com.android.vending",
+                "com.google.android.gms",
                 "com.google.android.packageinstaller",
                 "com.android.packageinstaller",
+                "com.miui.packageinstaller",
+                "com.samsung.android.packageinstaller",
                 "com.transsion.packageinstaller",
-                "com.google.android.gms"
-            ).forEach { pkg ->
+                "com.coloros.packageinstaller",
+                "com.vivo.packageinstaller",
+                "com.oppo.market",
+                "com.bbk.appstore",
+                "com.huawei.appmarket"
+            )
+
+            for (pkg in knownInstallers) {
                 try {
                     context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (_: Exception) {}
+            }
+
+            // Grant to all packages that can handle the view intent
+            val resInfoList = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.queryIntentActivities(
+                    intent,
+                    android.content.pm.PackageManager.ResolveInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.queryIntentActivities(intent, 0)
+            }
+
+            for (resolveInfo in resInfoList) {
+                val pkgName = resolveInfo.activityInfo?.packageName
+                if (!pkgName.isNullOrBlank()) {
+                    try {
+                        context.grantUriPermission(pkgName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } catch (_: Exception) {}
+                }
             }
 
             context.startActivity(intent)

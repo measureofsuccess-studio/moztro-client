@@ -62,9 +62,7 @@ fun SettingsScreen(
     vodDefaultOn: Boolean = true,
     storageDirectoryPath: String = "",
     overdriveTouchMode: OverdriveTouchMode = OverdriveTouchMode.DIRECT_TOUCH,
-    overdriveQuality: OverdriveQuality = OverdriveQuality.HIGH,
     overdriveAudioEnabled: Boolean = true,
-    onAppLanguageChange: (AppLanguage) -> Unit = {},
     onMouseSpeedChange: (Int) -> Unit,
     onScrollLinesChange: (Int) -> Unit,
     onFullscreenToggle: (Boolean) -> Unit,
@@ -72,7 +70,6 @@ fun SettingsScreen(
     onVodDefaultOnToggle: (Boolean) -> Unit = {},
     onStorageDirectoryChange: (String) -> Unit = {},
     onOverdriveTouchModeChange: (OverdriveTouchMode) -> Unit = {},
-    onOverdriveQualityChange: (OverdriveQuality) -> Unit = {},
     onOverdriveAudioEnabledToggle: (Boolean) -> Unit = {}
 ) {
     val view = LocalView.current
@@ -87,81 +84,6 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Section 1: LANGUAGE
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MonoSurface, shape = RectangleShape)
-                .border(1.dp, MonoBorder, shape = RectangleShape)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = strings.settingsSectionLanguage,
-                color = MonoWhite,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-                fontFamily = FontFamily.Monospace
-            )
-
-            HorizontalDivider(thickness = 1.dp, color = MonoBorder)
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column {
-                    Text(
-                        text = strings.settingsLanguageTitle,
-                        color = MonoTextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = strings.settingsLanguageDesc,
-                        color = MonoTextMuted,
-                        fontSize = 11.sp
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AppLanguage.entries.forEach { lang ->
-                        val isSelected = (appLanguage == lang)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    color = if (isSelected) MonoWhite else MonoDarkBg,
-                                    shape = RectangleShape
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) MonoWhite else MonoBorder,
-                                    shape = RectangleShape
-                                )
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    onAppLanguageChange(lang)
-                                }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = lang.displayName,
-                                color = if (isSelected) MonoDarkBg else MonoTextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         // Section 2: POINTER & TOUCHPAD
         Column(
@@ -637,67 +559,7 @@ fun SettingsScreen(
 
             HorizontalDivider(thickness = 1.dp, color = MonoBorder)
 
-            // Item 2: Streaming Quality
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = strings.settingsStreamQuality,
-                    color = MonoTextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = strings.settingsStreamQualityDesc,
-                    color = MonoTextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OverdriveQuality.entries.forEach { quality ->
-                        val isSelected = (overdriveQuality == quality)
-                        val qualityLabel = when (quality) {
-                            OverdriveQuality.HIGH -> strings.qualityHigh
-                            OverdriveQuality.FAST -> strings.qualityFast
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    color = if (isSelected) MonoWhite else MonoDarkBg,
-                                    shape = RectangleShape
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) MonoWhite else MonoBorder,
-                                    shape = RectangleShape
-                                )
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    onOverdriveQualityChange(quality)
-                                }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = qualityLabel,
-                                color = if (isSelected) MonoDarkBg else MonoTextPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(thickness = 1.dp, color = MonoBorder)
-
-            // Item 3: Stream PC System Audio
+            // Item 2: Stream PC System Audio
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

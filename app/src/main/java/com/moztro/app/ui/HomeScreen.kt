@@ -203,6 +203,7 @@ fun HomeScreen(viewModel: MainViewModel) {
     val overdriveStreamHeight by viewModel.overdriveStreamHeight.collectAsState()
     val pcCursorPosition by viewModel.pcCursorPosition.collectAsState()
     val availableUpdate by viewModel.availableUpdate.collectAsState()
+    val isCheckingUpdate by viewModel.isCheckingUpdate.collectAsState()
     val isDownloadingUpdate by viewModel.isDownloadingUpdate.collectAsState()
     val updateDownloadProgress by viewModel.updateDownloadProgress.collectAsState()
     val downloadSpeedFormatted by viewModel.downloadSpeedFormatted.collectAsState()
@@ -574,6 +575,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                             },
                             availableUpdate = availableUpdate,
                             onUpdateClick = {
+                                viewModel.checkForAppUpdate()
                                 viewModel.navigateTo(ScreenView.UPDATE)
                             }
                         )
@@ -634,9 +636,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                             vodDefaultOn = vodDefaultOn,
                             storageDirectoryPath = storageDirectoryPath,
                             overdriveTouchMode = overdriveTouchMode,
-                            overdriveQuality = overdriveQuality,
                             overdriveAudioEnabled = overdriveAudioEnabled,
-                            onAppLanguageChange = { viewModel.setAppLanguage(it) },
                             onMouseSpeedChange = { viewModel.setMouseSpeed(it) },
                             onScrollLinesChange = { viewModel.setScrollLines(it) },
                             onFullscreenToggle = { viewModel.setFullscreen(it) },
@@ -644,7 +644,6 @@ fun HomeScreen(viewModel: MainViewModel) {
                             onVodDefaultOnToggle = { viewModel.setVodDefaultOn(it) },
                             onStorageDirectoryChange = { viewModel.updateStorageDirectory(it) },
                             onOverdriveTouchModeChange = { viewModel.setOverdriveTouchMode(it) },
-                            onOverdriveQualityChange = { viewModel.setOverdriveQuality(it) },
                             onOverdriveAudioEnabledToggle = { viewModel.setOverdriveAudioEnabled(it) }
                         )
                     }
@@ -731,12 +730,14 @@ fun HomeScreen(viewModel: MainViewModel) {
                             appLanguage = appLanguage,
                             currentVersion = viewModel.currentVersionFormatted,
                             updateInfo = availableUpdate,
+                            isChecking = isCheckingUpdate,
                             isDownloading = isDownloadingUpdate,
                             downloadProgress = updateDownloadProgress,
                             downloadSpeedFormatted = downloadSpeedFormatted,
                             isReadyToInstall = isUpdateReadyToInstall,
                             onDownloadClick = { viewModel.startDownloadUpdate(context) },
                             onInstallClick = { viewModel.installDownloadedApk(context) },
+                            onCheckAgainClick = { viewModel.checkForAppUpdate() },
                             onBackClick = { viewModel.navigateBack() }
                         )
                     }

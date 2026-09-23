@@ -136,6 +136,10 @@ class AppStrings(
     val updateDownloadBtn: String,
     val updateDownloading: String,
     val updateVerifying: String,
+    val updateChecking: String,
+    val updateUpToDate: String,
+    val updateCheckAgain: String,
+    val updateCheckFailed: String,
 
     // Notifications / Toasts
     val toastSendingFiles: String,
@@ -268,6 +272,10 @@ class AppStrings(
             updateDownloadBtn = "Download %s",
             updateDownloading = "Downloading...",
             updateVerifying = "Verifying package...",
+            updateChecking = "Checking for updates...",
+            updateUpToDate = "Moztro Client is up to date",
+            updateCheckAgain = "Check for Updates",
+            updateCheckFailed = "Unable to check for updates.",
 
             // Notifications / Toasts
             toastSendingFiles = "Sending %d file(s)...",
@@ -400,6 +408,10 @@ class AppStrings(
             updateDownloadBtn = "Unduh %s",
             updateDownloading = "Mengunduh...",
             updateVerifying = "Memverifikasi paket...",
+            updateChecking = "Memeriksa pembaruan...",
+            updateUpToDate = "Moztro Client sudah versi terbaru",
+            updateCheckAgain = "Cek Pembaruan",
+            updateCheckFailed = "Gagal memeriksa pembaruan.",
 
             // Notifications / Toasts
             toastSendingFiles = "Mengirim %d berkas...",

@@ -52,7 +52,7 @@ import com.moztro.app.ui.theme.MonoWhite
 @Composable
 fun AboutScreen(
     appLanguage: AppLanguage = AppLanguage.ENGLISH,
-    versionName: String = "v1.0.1 Beta"
+    versionName: String = "v1.0.1"
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -74,7 +74,7 @@ fun AboutScreen(
                 .background(MonoSurface, shape = RectangleShape)
                 .border(1.dp, MonoBorder, shape = RectangleShape)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

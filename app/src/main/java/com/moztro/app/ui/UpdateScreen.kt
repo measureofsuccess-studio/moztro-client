@@ -63,18 +63,21 @@ fun UpdateScreen(
     appLanguage: AppLanguage = AppLanguage.ENGLISH,
     currentVersion: String = "v1.0.1",
     updateInfo: AppUpdateInfo?,
+    isChecking: Boolean = false,
     isDownloading: Boolean,
     downloadProgress: Float,
     downloadSpeedFormatted: String,
     isReadyToInstall: Boolean,
     onDownloadClick: () -> Unit,
     onInstallClick: () -> Unit,
+    onCheckAgainClick: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
     val view = LocalView.current
     val scrollState = rememberScrollState()
     val strings = AppStrings.forLanguage(appLanguage)
-    val targetVersion = updateInfo?.versionName ?: "v1.0.2"
+    val hasUpdate = updateInfo != null
+    val targetVersion = updateInfo?.versionName ?: currentVersion
     val buttonInteractionSource = remember { MutableInteractionSource() }
 
     Column(
@@ -113,15 +116,23 @@ fun UpdateScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = strings.updateNewVersionAvailable,
-                            color = AccentBlue,
+                            text = when {
+                                isChecking -> strings.updateChecking.uppercase()
+                                hasUpdate -> strings.updateNewVersionAvailable
+                                else -> strings.updateUpToDate.uppercase()
+                            },
+                            color = if (hasUpdate) AccentBlue else MonoTextSecondary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = if (updateInfo?.releaseTitle?.isNotBlank() == true) updateInfo.releaseTitle else "Moztro Client $targetVersion",
+                            text = when {
+                                isChecking -> strings.updateChecking
+                                hasUpdate -> if (updateInfo?.releaseTitle?.isNotBlank() == true) updateInfo.releaseTitle else "Moztro Client $targetVersion"
+                                else -> "Moztro Client $currentVersion"
+                            },
                             color = MonoWhite,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
@@ -163,7 +174,7 @@ fun UpdateScreen(
 
                     Text(
                         text = "➔",
-                        color = AccentBlue,
+                        color = if (hasUpdate) AccentBlue else MonoTextMuted,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -173,15 +184,22 @@ fun UpdateScreen(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = strings.updateNewVersion,
+                            text = if (hasUpdate) strings.updateNewVersion else strings.updateCurrentVersion,
                             color = MonoTextMuted,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace
                         )
                         Box(
                             modifier = Modifier
-                                .background(AccentBlue.copy(alpha = 0.15f), shape = RectangleShape)
-                                .border(1.dp, AccentBlue, shape = RectangleShape)
+                                .background(
+                                    if (hasUpdate) AccentBlue.copy(alpha = 0.15f) else MonoDarkBg,
+                                    shape = RectangleShape
+                                )
+                                .border(
+                                    1.dp,
+                                    if (hasUpdate) AccentBlue else MonoBorder,
+                                    shape = RectangleShape
+                                )
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
@@ -215,10 +233,11 @@ fun UpdateScreen(
                 )
                 HorizontalDivider(thickness = 1.dp, color = MonoBorder)
 
-                val notes = if (updateInfo?.releaseNotes?.isNotBlank() == true) {
-                    updateInfo.releaseNotes
-                } else {
-                    strings.updateNoReleaseNotes
+                val notes = when {
+                    isChecking -> strings.updateChecking
+                    hasUpdate && updateInfo?.releaseNotes?.isNotBlank() == true -> updateInfo.releaseNotes
+                    hasUpdate -> strings.updateNoReleaseNotes
+                    else -> strings.updateUpToDate
                 }
 
                 Text(
@@ -283,11 +302,13 @@ fun UpdateScreen(
                 }
             }
 
-            // Main Pill Button (Download / Ready To Install)
+            // Main Pill Button (Download / Ready To Install / Check for Updates)
             val buttonText = when {
+                isChecking -> strings.updateChecking
                 isReadyToInstall -> strings.updateReadyToInstall
                 isDownloading -> "${strings.updateDownloading} ${(downloadProgress * 100).toInt()}%"
-                else -> java.lang.String.format(strings.updateDownloadBtn, "($targetVersion)")
+                hasUpdate -> java.lang.String.format(strings.updateDownloadBtn, "($targetVersion)")
+                else -> strings.updateCheckAgain
             }
 
             Box(
@@ -296,20 +317,25 @@ fun UpdateScreen(
                     .height(52.dp)
                     .shadow(elevation = 6.dp, shape = RoundedCornerShape(50.dp), spotColor = AccentBlue)
                     .background(
-                        color = if (isDownloading) AccentBlue.copy(alpha = 0.7f) else AccentBlue,
+                        color = when {
+                            isChecking -> MonoSurface
+                            isDownloading -> AccentBlue.copy(alpha = 0.7f)
+                            hasUpdate -> AccentBlue
+                            else -> AccentBlue
+                        },
                         shape = RoundedCornerShape(50.dp)
                     )
                     .clip(RoundedCornerShape(50.dp))
                     .clickable(
-                        enabled = !isDownloading,
+                        enabled = !isDownloading && !isChecking,
                         interactionSource = buttonInteractionSource,
                         indication = null
                     ) {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        if (isReadyToInstall) {
-                            onInstallClick()
-                        } else {
-                            onDownloadClick()
+                        when {
+                            isReadyToInstall -> onInstallClick()
+                            hasUpdate -> onDownloadClick()
+                            else -> onCheckAgainClick()
                         }
                     },
                 contentAlignment = Alignment.Center
